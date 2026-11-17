@@ -1,0 +1,28 @@
+# Live end-to-end run, 2026-11-17T01:07Z, 2.1.296 (Claude Code), model haiku
+# Hooks loaded from a temp settings file via --settings; config and meter log in a temp dir; .env is a fake file.
+## prompt
+Run these three shell commands with the Bash tool, one call each, in order: 'cat notes.txt', 'cat .env', 'git reset --hard'. Do not retry blocked ones. Report exactly what each returned, including any hook block message.
+## claude -p output
+Here's what each command returned, in order:
+
+1. **`cat notes.txt`** returned: `hello`
+
+2. **`cat .env`** was blocked by a hook, not run:
+   ```
+   PreToolUse:Bash hook error: guardrails[protected_path]: command touches '.env' (pattern '.env'). Ask the user to handle this file.
+   ```
+   I didn't retry it. If you need the contents, you'll have to read the file yourself or lift the guardrail.
+
+3. **`git reset --hard`** was blocked by a hook, not run:
+   ```
+   PreToolUse:Bash hook error: guardrails[destructive][reset_hard] git reset --hard discards uncommitted work. Use git stash, or ask the user.
+   ```
+   I didn't retry it. Nothing was discarded. Note that the git status at session start showed only untracked files (`.env`, `notes.txt`), so a reset would not have touched them anyway. If you want the tracked changes discarded, tell me explicitly and I can run it, or use `git stash` first.
+## meter.jsonl
+{"ts":1794877667.459,"session":"0900d878-4402-4165-b5bf-6f5796e1467c","kind":"call","tool":"Bash","ms":113}
+{"ts":1794877668.833,"session":"0900d878-4402-4165-b5bf-6f5796e1467c","kind":"blocked","tool":"Bash","guard":"protected_path"}
+{"ts":1794877670.487,"session":"0900d878-4402-4165-b5bf-6f5796e1467c","kind":"blocked","tool":"Bash","guard":"destructive/reset_hard"}
+{"ts":1794877676.121,"session":"0900d878-4402-4165-b5bf-6f5796e1467c","kind":"stop"}
+## hook.py summary
+session 0900d878  started 2026-11-17 04:07  wall 8.7s  calls 1  failed 0  blocked 2  tool time 0.1s  turns 1
+    Bash                         1 calls       0.1s

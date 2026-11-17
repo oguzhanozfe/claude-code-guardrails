@@ -1,0 +1,20 @@
+{
+  "python": "3.12.14",
+  "benign_commands": {
+    "total": 501,
+    "flagged": 1,
+    "fp_rate": 0.002,
+    "flagged_items": [
+      {
+        "command": "cp .env.example .env.local",
+        "reason": "guardrails[protected_path]: command touches '.env.local' (pattern '.env.*'). Ask the user to handle this file."
+      }
+    ]
+  },
+  "stdlib_files_secret_guard": {
+    "total": 686,
+    "flagged": 0,
+    "fp_rate": 0.0,
+    "flagged_items": []
+  }
+}
