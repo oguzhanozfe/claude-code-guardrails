@@ -2,7 +2,7 @@
 
 A small pack of [Claude Code hooks](https://code.claude.com/docs/en/hooks) that stop an agent before it
 writes a credential, runs a destructive command, or touches a secrets file. It also meters every tool
-call per session into a local JSONL file. Pure Python standard library, 3.10+, about 800 lines.
+call per session into a local JSONL file. Pure Python standard library, 3.10+, under 900 lines.
 
 ## Try it
 
