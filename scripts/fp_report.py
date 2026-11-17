@@ -49,7 +49,7 @@ report = {
     "stdlib_files_secret_guard": {"total": len(files), "flagged": len(file_hits),
                                   "fp_rate": round(len(file_hits) / len(files), 4), "flagged_items": file_hits},
 }
-out = ROOT / "results" / "fp_report.json"
+out = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "results" / "fp_report.json"
 out.parent.mkdir(exist_ok=True)
 out.write_text(json.dumps(report, indent=2) + "\n")
 for key in ("benign_commands", "stdlib_files_secret_guard"):
