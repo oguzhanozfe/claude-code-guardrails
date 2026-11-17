@@ -13,17 +13,8 @@
   },
   "stdlib_files_secret_guard": {
     "total": 1803,
-    "flagged": 2,
-    "fp_rate": 0.0011,
-    "flagged_items": [
-      {
-        "file": "test/test_nntplib.py",
-        "matched": "password/secret assignment"
-      },
-      {
-        "file": "test/test_ssl.py",
-        "matched": "password/secret assignment"
-      }
-    ]
+    "flagged": 0,
+    "fp_rate": 0.0,
+    "flagged_items": []
   }
 }
