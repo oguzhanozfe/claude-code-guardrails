@@ -72,6 +72,18 @@ class HookContract(unittest.TestCase):
         self.assertIn("calls 2", summary.stdout)
 
 
+class Demo(unittest.TestCase):
+    def test_demo_runs_keyless_in_temp_home(self):
+        from guardrails import demo
+        rows, summary = demo.run()
+        self.assertEqual(sum(r["blocked"] for r in rows), 10)
+        self.assertEqual(len(rows), 18)
+        self.assertIn("blocked 10", summary)
+        self.assertNotIn(demo.FAKE_TOKEN, demo.as_text(rows, summary) + demo.as_html(rows, summary) + demo.as_svg(rows))
+        self.assertFalse(Path(h.REAL_HOME, ".claude", "guardrails", "meter.jsonl").exists()
+                         and "demo-0001" in Path(h.REAL_HOME, ".claude", "guardrails", "meter.jsonl").read_text())
+
+
 class Installer(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(dir=h.FAKE_HOME))

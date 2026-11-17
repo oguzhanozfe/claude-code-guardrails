@@ -12,6 +12,8 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: python -m unittest discover -s tests -v
+      - name: keyless demo
+        run: python -m guardrails demo --html demo-out/index.html --svg demo-out/demo.svg
       - run: python scripts/fp_report.py fp_report_ci_py${{ matrix.python }}.json
       - uses: actions/upload-artifact@v4
         with:

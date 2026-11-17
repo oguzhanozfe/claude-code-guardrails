@@ -5,6 +5,7 @@
   hook.py check '<command>'      test a Bash command against the guards
   hook.py summary [--session ID] [--last N] [--json]
   hook.py install|uninstall [--settings PATH] [--dry-run]
+  hook.py demo [--html P] [--svg P]  keyless demo: scripted tool calls through the real hook, temp HOME
 """
 from __future__ import annotations
 
@@ -57,6 +58,9 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--session")
     s.add_argument("--last", type=int, default=5)
     s.add_argument("--json", action="store_true")
+    d = sub.add_parser("demo")
+    d.add_argument("--html", help="also write the transcript as an HTML page")
+    d.add_argument("--svg", help="also write a terminal-style SVG capture")
     for name in ("install", "uninstall"):
         i = sub.add_parser(name)
         i.add_argument("--settings", type=Path, default=Path("~/.claude/settings.json").expanduser())
@@ -69,6 +73,9 @@ def main(argv: list[str] | None = None) -> int:
         reason = guards.check({"tool_name": "Bash", "tool_input": {"command": a.command}}, config.load())
         print(reason or "allowed")
         return 1 if reason else 0
+    if a.cmd == "demo":
+        from guardrails import demo
+        return demo.main(a.html, a.svg)
     if a.cmd == "summary":
         rows = meter.summarize(meter.log_path(config.load()), a.session, a.last)
         print(json.dumps(rows, indent=2) if a.json else meter.format_summary(rows))

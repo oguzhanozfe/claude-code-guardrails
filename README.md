@@ -2,7 +2,24 @@
 
 A small pack of [Claude Code hooks](https://code.claude.com/docs/en/hooks) that stop an agent before it
 writes a credential, runs a destructive command, or touches a secrets file. It also meters every tool
-call per session into a local JSONL file. Pure Python standard library, 3.10+, about 700 lines.
+call per session into a local JSONL file. Pure Python standard library, 3.10+, about 800 lines.
+
+## Try it
+
+**Demo page:** https://oguzhanozfe.github.io/claude-code-guardrails/ shows a scripted session replayed through the real hook.
+
+```bash
+git clone https://github.com/oguzhanozfe/claude-code-guardrails && cd claude-code-guardrails
+python3 -m guardrails demo      # no model, no API key, temp HOME, nothing is executed; under 1 second
+```
+
+![demo: 18 scripted tool calls, 10 blocked with reasons, 8 allowed](docs/demo.svg)
+
+The demo sends 18 tool calls (benign and dangerous) as PreToolUse JSON to `hook.py hook pre` in a subprocess
+with a temp `HOME`, the same way Claude Code does. It prints each verdict and reason, then the meter summary.
+Allowed calls get a PostToolUse event with simulated durations. No command runs and no file is written.
+To use it with a real model, install the hooks (below) and use Claude Code as usual. The guards
+themselves never call a model.
 
 ## Why
 
@@ -68,7 +85,7 @@ override of the defaults in [`guardrails/config.py`](guardrails/config.py); keys
 `fail_closed: true` makes an internal hook error (bad input, a bug) block the tool call. The default
 fails open: the error is shown in the transcript and the call proceeds.
 
-## Try it
+## More commands
 
 ```bash
 python3 hook.py check 'rm -rf "$BUILD_DIR"/'
