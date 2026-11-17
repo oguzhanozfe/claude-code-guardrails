@@ -95,15 +95,19 @@ including the traps above. Plus 15 tests for the hook's stdin/stdout contract, t
 (dry run, idempotence, backups, foreign hooks kept, invalid JSON, symlinks, uninstall restoring the original).
 All of them run offline and on CI against a temp `HOME`.
 
-**False positives on benign input** ([`results/fp_report.json`](results/fp_report.json), `python3 scripts/fp_report.py`):
+**False positives on benign input** (`python3 scripts/fp_report.py`; CI reruns it on every push for 3.10–3.13 and uploads the report):
 
-| Corpus | Size | Flagged | Rate |
-| --- | --- | --- | --- |
-| Everyday dev shell commands ([`tests/corpus/benign_commands.txt`](tests/corpus/benign_commands.txt)), all guards | 501 | 1 | 0.20% |
-| Python 3.12 standard library `.py` files as Write content, secret guard | 686 | 0 | 0.00% |
+| Corpus | Size | Flagged | Rate | Source file |
+| --- | --- | --- | --- | --- |
+| Everyday dev shell commands ([`tests/corpus/benign_commands.txt`](tests/corpus/benign_commands.txt)), all guards | 501 | 1 | 0.20% | [`fp_report_ci_py3.12.json`](results/fp_report_ci_py3.12.json) |
+| Full CPython 3.12.16 standard library incl. `test/` (GitHub runner) as Write content, secret guard | 1803 | 2 | 0.11% | [`fp_report_ci_py3.12.json`](results/fp_report_ci_py3.12.json) |
+| Trimmed CPython 3.12 stdlib without `test/` (uv build, macOS), secret guard | 686 | 0 | 0.00% | [`fp_report.json`](results/fp_report.json) |
 
 The one flagged command is `cp .env.example .env.local`. That's a deliberate trade-off: the guard
-blocks writing any `.env.*` file except the example/sample/template names.
+blocks writing any `.env.*` file except the example/sample/template names. The two flagged stdlib files,
+`test/test_nntplib.py` and `test/test_ssl.py`, contain literal test passwords. The pattern is right, but
+the context is a test fixture. Add `secret.allow_paths` for fixture folders if that happens in your
+project. On CI, the other Python versions give 2–3 flagged files out of 1713–1824.
 
 How far to trust these numbers: the command corpus was written by a separate LLM subagent from a
 description of everyday dev work, without seeing the rules, but I wrote the rules and the corpus is still

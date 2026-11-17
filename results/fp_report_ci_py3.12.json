@@ -1,0 +1,29 @@
+{
+  "python": "3.12.16",
+  "benign_commands": {
+    "total": 501,
+    "flagged": 1,
+    "fp_rate": 0.002,
+    "flagged_items": [
+      {
+        "command": "cp .env.example .env.local",
+        "reason": "guardrails[protected_path]: command touches '.env.local' (pattern '.env.*'). Ask the user to handle this file."
+      }
+    ]
+  },
+  "stdlib_files_secret_guard": {
+    "total": 1803,
+    "flagged": 2,
+    "fp_rate": 0.0011,
+    "flagged_items": [
+      {
+        "file": "test/test_nntplib.py",
+        "matched": "password/secret assignment"
+      },
+      {
+        "file": "test/test_ssl.py",
+        "matched": "password/secret assignment"
+      }
+    ]
+  }
+}
