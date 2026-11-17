@@ -40,7 +40,8 @@ for p in files:
         continue
     name = guards.find_secret(text, cfg["secret"])
     if name:
-        file_hits.append({"file": str(p.relative_to(stdlib)), "matched": name})
+        file_hits.append({"file": str(p.relative_to(stdlib)), "matched": name,
+                          "line": guards._line_of(text, cfg["secret"]).strip(" ()")})
 
 report = {
     "python": platform.python_version(),

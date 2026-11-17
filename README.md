@@ -18,12 +18,12 @@ what to do instead. The model reads that reason and usually picks a safer route 
 | --- | --- | --- | --- |
 | `secret` | PreToolUse on Bash, Write, Edit, MultiEdit, NotebookEdit | Private key blocks, AWS/GitHub/OpenAI/Anthropic/Stripe/Google/Slack keys, JWTs, `password = "<literal>"`, passwords in URLs | `content for /app/settings.py contains a string shaped like a GitHub token (line 2). Read it from an environment variable or secret manager instead.` (the secret itself is never echoed) |
 | `destructive` | PreToolUse on Bash | Recursive `rm` on `/`, `~`, `.`, `*`, top-level dirs or `"$VAR"/`; force push to protected branches; `git reset --hard`; `DROP`/`TRUNCATE TABLE` sent to a DB client; `chmod -R 777`; `curl`/`wget` piped or substituted into a shell | `[force_push] force push to protected branch 'main'. Push to a feature branch, or ask the user.` |
-| `protected_paths` | PreToolUse on Read, Write, Edit, Bash | `.env`, `.env.*`, `*.pem`, `*.key`, SSH keys, `~/.ssh`, `~/.aws/credentials`, `~/.netrc`, kube/docker/gcloud configs. Writes only: `~/.claude/settings.json` and the guardrails config, so the agent can't switch its own guards off | `command touches '.env' (pattern '.env'). Ask the user to handle this file.` |
+| `protected_paths` | PreToolUse on Read, Grep, Glob, Write, Edit, Bash | `.env`, `.env.*`, `*.pem`, `*.key`, SSH keys, `~/.ssh`, `~/.aws/credentials`, `~/.netrc`, kube/docker/gcloud configs. Writes only: `~/.claude/settings.json` and the guardrails config, so the agent can't switch its own guards off | `command touches '.env' (pattern '.env'). Ask the user to handle this file.` |
 | `meter` | PostToolUse, PostToolUseFailure, Stop | Nothing. Appends `{ts, session, kind, tool, ms}` per call, block and turn. Never logs tool input or output | |
 
 Shell commands are tokenised with `shlex`, not grepped, so `echo "rm -rf /"`, `git commit -m "drop table users_old"`
 and `grep -rn "curl | sh" docs/` pass, while `bash -c "rm -rf ~"`, `echo $(rm -rf /)` and
-`sudo env X=1 rm -rf /usr` are caught. When the hook blocks, it prints the documented PreToolUse JSON
+`sudo -u root env X=1 rm -rf /usr` are caught. When the hook blocks, it prints the documented PreToolUse JSON
 (`permissionDecision: "deny"` plus a reason) and exits 0. When it has nothing to say, it prints nothing.
 It never returns `allow`, so your normal permission prompts stay in charge.
 
@@ -75,7 +75,8 @@ python3 hook.py check 'rm -rf "$BUILD_DIR"/'
 # guardrails[destructive][rm_broad] recursive rm on '$BUILD_DIR/', a path built from a variable that becomes / when the variable is empty. ...
 python3 hook.py check 'rm -rf "${BUILD_DIR:?}"/out'
 # allowed
-echo '{"tool_name":"Bash","tool_input":{"command":"git push -f origin main"}}' | python3 hook.py hook pre
+echo '{"tool_name":"Bash","tool_input":{"command":"git push -f origin main"}}' \
+  | GUARDRAILS_METER_LOG=/tmp/guardrails-demo.jsonl python3 hook.py hook pre   # hook mode also writes a meter record
 # {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", ...}}
 python3 hook.py summary            # last 5 sessions; --session <id-prefix>, --last N, --json
 ```
@@ -90,7 +91,7 @@ Haiku, with the hooks loaded from a temp settings file through `--settings` and 
 guard's reason. The model reported the block and did not retry. The meter logged 1 call, 2 blocks and 1 turn.
 That is one run, not a benchmark.
 
-**Test tables** (`tests/test_guards.py`): 77 inputs that must be blocked and 67 that must be allowed,
+**Test tables** (`tests/test_guards.py`): 84 inputs that must be blocked and 73 that must be allowed,
 including the traps above. Plus 15 tests for the hook's stdin/stdout contract, the meter and the installer
 (dry run, idempotence, backups, foreign hooks kept, invalid JSON, symlinks, uninstall restoring the original).
 All of them run offline and on CI against a temp `HOME`.
@@ -122,8 +123,10 @@ Neither corpus measures how many real attacks get through.
   `python -c "shutil.rmtree(...)"`, or `psql -f drop.sql`. None of those are caught. For real isolation, run the
   agent in a container or VM with no production credentials.
 - The secret guard only checks what is *written* (Bash commands, Write/Edit content). It does not scan tool
-  output, and it misses secrets that don't match a known shape. For example, an all-lowercase password like
-  `correcthorsebattery` is treated as an identifier.
+  output, and it misses secrets that don't match a known shape. For `password = ...` it guesses whether the
+  value is code or a literal. All-letter values (`correcthorsebattery`) and snake_case values (`hunter2_prod`)
+  are treated as identifiers and pass. A variable name with a digit (`password=password1`) is treated as a
+  literal and blocked.
 - The protected-path check on Bash looks at words in the command, so it can't see paths built at runtime
   (`cat "$(echo .e)nv"`). It also blocks some harmless commands, such as `git rm --cached .env`.
 - When `git push --force` names no branch, the hook asks git for the current branch. If git can't say

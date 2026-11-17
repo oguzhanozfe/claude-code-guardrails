@@ -28,6 +28,7 @@ def fake(*parts: str) -> str:
 GH_TOKEN = fake("gh", "p_", "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8")
 AWS_KEY = fake("AK", "IA", "Z7Q4M2X9W8V6T5R3")
 OPENAI_KEY = fake("sk-", "proj-", "Xy7Qa9Lm2Np4Rs6Tu8Vw0Yz3Bc5De7Fg9Hj")
+OPENAI_HEX_KEY = fake("sk-", "3f9a1c0b7e2d4f6a8b9c0d1e2f3a4b5c")  # older all-lowercase hex style
 ANTHROPIC_KEY = fake("sk-", "ant-", "api03-", "Q8w7E6r5T4y3U2i1O0pAsDfGhJkLzXcV")
 STRIPE_KEY = fake("sk", "_live_", "4eC39HqLyjWDarjtT1zdp7dc8xYz")
 SLACK_TOKEN = fake("xo", "xb-", "1234567890-0987654321-AbCdEfGhIjKlMnOp")

@@ -16,7 +16,7 @@ from . import config
 
 TAG = "claude-code-guardrails"
 HOOK_SCRIPT = Path(__file__).resolve().parent.parent / "hook.py"
-PRE_MATCHER = "Bash|Read|Write|Edit|MultiEdit|NotebookEdit"
+PRE_MATCHER = "Bash|Read|Grep|Glob|Write|Edit|MultiEdit|NotebookEdit"
 
 
 def _handler(mode: str, timeout: int) -> dict:

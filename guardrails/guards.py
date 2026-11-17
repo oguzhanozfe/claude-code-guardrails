@@ -19,7 +19,7 @@ _SECRET_PATTERNS = [
     ("AWS access key id", re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"), False),
     ("GitHub token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{30,}"), False),
     ("GitHub fine-grained token", re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}"), False),
-    # Real OpenAI/Anthropic keys are long random base62; requiring mixed case + digit
+    # Real OpenAI/Anthropic keys are long and random; requiring a digit and a letter
     # keeps long kebab-case identifiers like sk-some-feature-flag-name from matching.
     ("OpenAI/Anthropic-style key", re.compile(r"\bsk-(?:proj-|ant-|svcacct-)?[A-Za-z0-9_-]{32,}"), True),
     ("Stripe live key", re.compile(r"\b[rs]k_live_[0-9A-Za-z]{20,}"), False),
@@ -30,15 +30,17 @@ _SECRET_PATTERNS = [
 ]
 _KV = re.compile(
     r"(?i)(?:\b|_)(?:password|passwd|pwd|secret|secret[_-]?key|api[_-]?key|access[_-]?token|auth[_-]?token|"
-    r"refresh[_-]?token|client[_-]?secret|private[_-]?key)\b['\"]?\s*[:=]\s*['\"]?([^\s'\",;]{8,})"
+    r"refresh[_-]?token|client[_-]?secret|private[_-]?key)\b['\"]?\s*[:=]\s*['\"]?([^\s'\",;)\]}]{8,})"
 )
 _URL_CRED = re.compile(r"\b[a-z][a-z0-9+.-]*://[^/\s:@]+:([^/\s:@]{6,})@")
 _PLACEHOLDER = re.compile(r"(?i)example|changeme|change_me|placeholder|your|xxx|redacted|dummy|secret_here|\*{3}|<|\$")
-_EXPRESSION = re.compile(r"[(\[{]|^[A-Za-z_]+$|^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+$")
+# all letters, snake_case names with an underscore, dotted names, and calls/indexing are code, not literals
+_EXPRESSION = re.compile(r"[(\[{]|^[A-Za-z_]+$|^[A-Za-z]\w*_\w*$|^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+$")
 
 
 def _mixed(s: str) -> bool:
-    return any(c.isdigit() for c in s) and any(c.isupper() for c in s) and any(c.islower() for c in s)
+    body = s[3:]  # drop "sk-"
+    return any(c.isdigit() for c in body) and any(c.isalpha() for c in body)
 
 
 def _literal_value(value: str) -> bool:
@@ -76,6 +78,7 @@ def _line_of(text: str, cfg: dict) -> str:
 # --------------------------------------------------------------------------- shell parsing
 _SEPARATORS = {";", "&&", "||", "|", "&", "|&", "(", ")", ";;"}
 _WRAPPERS = {"sudo", "doas", "env", "nohup", "time", "command", "exec", "nice", "timeout", "builtin", "xargs"}
+_OPTS_WITH_VALUE = {"-u", "-g", "-n", "-C", "-p", "-h", "-U", "-k", "-s", "--signal", "--kill-after", "--user", "--group"}
 _SHELLS = {"sh", "bash", "zsh", "dash", "ksh", "fish"}
 
 
@@ -122,8 +125,8 @@ def _strip_wrappers(argv: list[str]) -> list[str]:
             i += 1
         elif posixpath.basename(tok) in _WRAPPERS:
             i += 1
-            while i < len(argv) and (argv[i].startswith("-") or argv[i].isdigit()):
-                i += 1
+            while i < len(argv) and (argv[i].startswith("-") or re.match(r"^\d+(\.\d+)?[smhd]?$", argv[i])):
+                i += 2 if argv[i] in _OPTS_WITH_VALUE else 1
         else:
             break
     return argv[i:]
@@ -259,10 +262,13 @@ def check_command(cmd: str, cfg: dict, cwd: str | None = None, branch_of=current
 
 
 # --------------------------------------------------------------------------- protected paths
-def _matches(path: str, patterns: list[str], cwd: str) -> str | None:
+def _matches(path: str, patterns: list[str], cwd: str, globs: bool = True) -> str | None:
     full = posixpath.normpath(os.path.join(cwd, os.path.expanduser(path)))
     base = posixpath.basename(full)
+    glob = globs and any(c in base for c in "*?[") and base.strip("*?") != ""  # a bare * is not a hit
     for pat in patterns:
+        if glob and "/" not in pat and fnmatch.fnmatchcase(pat.replace("*", "x"), base):
+            return pat  # a shell glob like .env* that would expand to a protected name
         if "/" in pat:
             if fnmatch.fnmatchcase(full, posixpath.normpath(os.path.expanduser(pat))):
                 return pat
@@ -272,7 +278,7 @@ def _matches(path: str, patterns: list[str], cwd: str) -> str | None:
 
 
 def protected_hit(path: str, cfg: dict, cwd: str, write: bool) -> str | None:
-    if not path or _matches(path, cfg["allow"], cwd):
+    if not path or _matches(path, cfg["allow"], cwd, globs=False):
         return None
     return _matches(path, cfg["paths"] + (cfg["write_paths"] if write else []), cwd)
 
@@ -310,12 +316,12 @@ def check(event: dict, cfg: dict, branch_of=current_branch) -> str | None:
     tool = event.get("tool_name") or ""
     inp = event.get("tool_input") or {}
     cwd = event.get("cwd") or os.getcwd()
-    path = inp.get("file_path") or inp.get("notebook_path") or ""
+    path = inp.get("file_path") or inp.get("notebook_path") or inp.get("path") or ""
     cmd = (inp.get("command") or "") if tool == "Bash" else ""
 
     pp = cfg["protected_paths"]
     if pp["enabled"]:
-        if tool in _WRITE_TOOLS or tool == "Read":
+        if tool in _WRITE_TOOLS or tool in ("Read", "Grep", "Glob"):
             hit = protected_hit(path, pp, cwd, write=tool in _WRITE_TOOLS)
             if hit:
                 return f"guardrails[protected_path]: {path} matches protected pattern {hit!r}. Ask the user to handle this file."
